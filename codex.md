@@ -45,6 +45,8 @@ npm run preview
    - `female_skeleton` / `female_atlas`
    - `male_skeleton` / `male_atlas`
    - `sombrero_skeleton` / `sombrero_atlas`
+   - `logo_skeleton` / `logo_atlas`
+   - `mexican_char_skeleton` / `mexican_char_atlas`
 4. Load texture và Spine asset bằng `Assets.load`.
 5. Tính toán kích thước board và grid dựa trên kích thước gốc của `/AA/Atest.png`:
    - board gốc: `1908x1566`
@@ -58,12 +60,14 @@ npm run preview
    - Symbol Spine dùng `Spine.from(...)` và animation mặc định.
 7. Tạo background app bằng `/AA/BG5.png`.
 8. Tạo board bằng `/AA/Atest.png`.
-9. Đặt `reelContainer` vào đúng vùng grid của board.
-10. Dùng `Graphics` làm mask để ẩn symbol ngoài vùng reel.
-11. Tạo nút play từ `/AA/play_button.png`.
-12. Khi bấm play, gọi `startPlay()` để tween tất cả reel.
-13. Reel nào quay xong trước sẽ gọi `playLandingForReel()` để chạy animation `landing` cho các symbol Spine đang hiện trên reel đó.
-14. Khi reel cuối cùng quay xong, `reelsComplete()` bật lại nút play.
+9. Tạo Spine logo bằng `/Symbol/Logo.json` và `/Symbol/Logo.atlas`, đặt bên trái board.
+10. Tạo Spine MexicanChar bằng `/Symbol/MexicanChar.json` và `/Symbol/MexicanChar.atlas`, đặt lệch bên phải board.
+11. Đặt `reelContainer` vào đúng vùng grid của board.
+12. Dùng `Graphics` làm mask để ẩn symbol ngoài vùng reel.
+13. Tạo nút play từ `/AA/play_button.png`.
+14. Khi bấm play, gọi `startPlay()` để tween tất cả reel.
+15. Reel nào quay xong trước sẽ gọi `playLandingForReel()` để chạy animation `landing` cho các symbol Spine đang hiện trên reel đó.
+16. Khi reel cuối cùng quay xong, `reelsComplete()` bật lại nút play.
 
 ## Thông số gameplay/render quan trọng
 
@@ -95,6 +99,10 @@ Trong `src/main.js`, các file đang load/dùng trực tiếp:
 - `/Symbol/Male_Special.atlas`
 - `/Symbol/Sombrero.json`
 - `/Symbol/Sombrero.atlas`
+- `/Symbol/Logo.json`
+- `/Symbol/Logo.atlas`
+- `/Symbol/MexicanChar.json`
+- `/Symbol/MexicanChar.atlas`
 
 Lưu ý: các file `.atlas` tham chiếu tới file `.png` cùng bộ trong `public/Symbol`, vì vậy không nên đổi tên/xóa PNG nếu chưa sửa atlas.
 
@@ -103,6 +111,8 @@ Lưu ý: các file `.atlas` tham chiếu tới file `.png` cùng bộ trong `pub
 - `female`: animation mặc định `idle`, landing `landing`.
 - `male`: animation mặc định `idle`, landing `landing`.
 - `sombrero`: animation mặc định `default`, landing `landing`, sau đó quay lại `default`.
+- `logo`: animation mặc định `animation`.
+- `mexicanChar`: animation mặc định `idle_normal`.
 
 Nếu thay Spine asset, cần kiểm tra tên animation trong file Spine mới có khớp các tên này không.
 
@@ -111,6 +121,9 @@ Nếu thay Spine asset, cần kiểm tra tên animation trong file Spine mới c
 - Tween tự viết đủ cho prototype, nhưng nếu game phức tạp hơn nên cân nhắc dùng tween library để dễ easing, cancel, sequence.
 - App dùng canvas resize theo viewport bằng `resizeTo: window`. `layoutScene()` căn lại background, board, reel và play button sau resize.
 - `/AA/BG5.png` được scale kiểu cover để phủ toàn màn hình mà không bị méo tỉ lệ.
+- Board, reel, logo và MexicanChar được scale cùng `gameScale` trong `layoutScene()` để không bị crop trên màn hình thấp/hẹp. Layout dùng `window.visualViewport`/`window.innerWidth` thay vì `app.screen` để tránh lệch do DPR/browser zoom. Các giới hạn chính là `BOARD_MIN_SIDE_MARGIN`, `BOARD_VERTICAL_MARGIN`, `BOARD_MAX_SCALE`, `BOARD_MIN_SCALE`.
+- Logo và MexicanChar được căn trong `layoutScene()` bằng bounding box của Spine. Logo neo bên trái board và hơi đè vào khung bằng `LOGO_BOARD_OVERLAP`; MexicanChar neo bên phải board và chạm gần đáy bằng `MEXICAN_CHAR_BOTTOM_OFFSET`. Chỉnh `LOGO_DISPLAY_WIDTH`, `LOGO_BOARD_OVERLAP`, `LOGO_CENTER_Y_OFFSET`, `MEXICAN_CHAR_DISPLAY_HEIGHT`, `MEXICAN_CHAR_BOARD_OVERLAP`, `MEXICAN_CHAR_BOTTOM_OFFSET` nếu muốn thay đổi vị trí/kích thước.
+- Spine atlas cần dùng đuôi `.atlas`. Nếu dùng `.atlas.txt`, loader có thể trả về text asset thay vì TextureAtlas và gây lỗi `this.atlas.findRegion is not a function`.
 - Canvas đang dùng `resolution` theo `devicePixelRatio` để asset Spine male/female sắc hơn trên màn hình high-DPI. Nếu thấy mờ lại, kiểm tra trước phần init Pixi này.
 
 ## Quy ước chỉnh sửa nên giữ

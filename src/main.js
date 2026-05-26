@@ -33,6 +33,10 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   Assets.add({ alias: "male_atlas", src: "/Symbol/Male_Special.atlas" });
   Assets.add({ alias: "sombrero_skeleton", src: "/Symbol/Sombrero.json" });
   Assets.add({ alias: "sombrero_atlas", src: "/Symbol/Sombrero.atlas" });
+  Assets.add({ alias: "logo_skeleton", src: "/Symbol/Logo.json" });
+  Assets.add({ alias: "logo_atlas", src: "/Symbol/Logo.atlas" });
+  Assets.add({ alias: "mexican_char_skeleton", src: "/Symbol/MexicanChar.json" });
+  Assets.add({ alias: "mexican_char_atlas", src: "/Symbol/MexicanChar.atlas" });
 
   // Load the textures
   await Assets.load([
@@ -47,12 +51,21 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     "male_atlas",
     "sombrero_skeleton",
     "sombrero_atlas",
+    "logo_skeleton",
+    "logo_atlas",
+    "mexican_char_skeleton",
+    "mexican_char_atlas",
   ]);
 
   const BOARD_ORIG_WIDTH = 1908;
   const BOARD_ORIG_HEIGHT = 1566;
 
-  const BOARD_DISPLAY_WIDTH = 700;
+  const BOARD_BASE_WIDTH = 700;
+  const BOARD_MIN_SIDE_MARGIN = 220;
+  const BOARD_VERTICAL_MARGIN = 44;
+  const BOARD_MAX_SCALE = 1;
+  const BOARD_MIN_SCALE = 0.58;
+  const BOARD_DISPLAY_WIDTH = BOARD_BASE_WIDTH;
   const BOARD_DISPLAY_SCALE = BOARD_DISPLAY_WIDTH / BOARD_ORIG_WIDTH;
   const BOARD_DISPLAY_HEIGHT = BOARD_ORIG_HEIGHT * BOARD_DISPLAY_SCALE;
 
@@ -88,6 +101,12 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const PLAY_BUTTON_WIDTH = 90;
   const BG_ORIG_WIDTH = 2752;
   const BG_ORIG_HEIGHT = 1536;
+  const LOGO_DISPLAY_WIDTH = 260;
+  const LOGO_BOARD_OVERLAP = 28;
+  const LOGO_CENTER_Y_OFFSET = 180;
+  const MEXICAN_CHAR_DISPLAY_HEIGHT = 560;
+  const MEXICAN_CHAR_BOARD_OVERLAP = 78;
+  const MEXICAN_CHAR_BOTTOM_OFFSET = -18;
   const BLUR_SPEED = 8;
   const DEFAULT_CELL_SCALE = 1;
   const DEFAULT_CELL_OFFSET_X = 0;
@@ -344,6 +363,20 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const board = new Sprite(Texture.from("/AA/Atest.png"));
   app.stage.addChild(board);
 
+  const logo = Spine.from({
+    skeleton: "logo_skeleton",
+    atlas: "logo_atlas",
+  });
+  logo.state.setAnimation(0, "animation", true);
+  app.stage.addChild(logo);
+
+  const mexicanChar = Spine.from({
+    skeleton: "mexican_char_skeleton",
+    atlas: "mexican_char_atlas",
+  });
+  mexicanChar.state.setAnimation(0, "idle_normal", true);
+  app.stage.addChild(mexicanChar);
+
   // Create a mask to hide symbols outside the reel area.
   // Extend it left so the first reel can overlap the board instead of being clipped.
   const reelMask = new Graphics()
@@ -388,6 +421,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   bottom.addChild(playButton);
   app.stage.addChild(bottom);
   app.renderer.on("resize", layoutScene);
+  window.visualViewport?.addEventListener("resize", layoutScene);
   layoutScene();
 
   let running = false;
@@ -400,12 +434,12 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     playButton.scale.set(baseScale);
     playButton.cursor = "default";
 
-    const baseSpinDistance = 12;
+    const baseSpinDistance = 20;
     const baseSpinTime = 1500;
     const stopDelayPerReel = 200;
     const extraSpinStepsPerReel = 4;
-    const windUpDistance = 0.18;
-    const windUpTime = 120;
+    const windUpDistance = 0.25;
+    const windUpTime = 200;
 
     for (let i = 0; i < reels.length; i++) {
       const r = reels[i];
@@ -460,8 +494,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   }
 
   function layoutScene() {
-    const screenWidth = app.screen.width;
-    const screenHeight = app.screen.height;
+    const screenWidth = window.visualViewport?.width ?? window.innerWidth;
+    const screenHeight = window.visualViewport?.height ?? window.innerHeight;
 
     const bgScale = Math.max(
       screenWidth / BG_ORIG_WIDTH,
@@ -473,23 +507,69 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     appBackground.x = Math.round((screenWidth - appBackground.width) / 2);
     appBackground.y = Math.round((screenHeight - appBackground.height) / 2);
 
-    board.width = BOARD_DISPLAY_WIDTH;
-    board.height = BOARD_DISPLAY_HEIGHT;
-    board.x = Math.round((screenWidth - board.width) / 2);
-    board.y = Math.round((screenHeight - board.height) / 2) + BOARD_Y_OFFSET;
+    const availableBoardWidth = screenWidth - BOARD_MIN_SIDE_MARGIN * 2;
+    const availableBoardHeight = screenHeight - BOARD_VERTICAL_MARGIN * 2;
+    const gameScale = Math.max(
+      BOARD_MIN_SCALE,
+      Math.min(
+        BOARD_MAX_SCALE,
+        availableBoardWidth / BOARD_DISPLAY_WIDTH,
+        availableBoardHeight / BOARD_DISPLAY_HEIGHT,
+      ),
+    );
 
-    reelContainer.x = board.x + GRID_X;
-    reelContainer.y = board.y + GRID_Y;
+    const boardWidth = BOARD_DISPLAY_WIDTH * gameScale;
+    const boardHeight = BOARD_DISPLAY_HEIGHT * gameScale;
 
-    const margin = board.y + GRID_Y;
+    board.width = boardWidth;
+    board.height = boardHeight;
+    board.x = Math.round((screenWidth - boardWidth) / 2);
+    board.y = Math.round((screenHeight - boardHeight) / 2) + BOARD_Y_OFFSET * gameScale;
+
+    layoutSpineByCenter(
+      logo,
+      board.x - LOGO_DISPLAY_WIDTH * gameScale / 2 + LOGO_BOARD_OVERLAP * gameScale - 50,
+      board.y + LOGO_CENTER_Y_OFFSET * gameScale,
+      LOGO_DISPLAY_WIDTH * gameScale / logo.skeleton.data.width,
+    );
+
+    layoutSpineByBottomRight(
+      mexicanChar,
+      board.x + boardWidth + MEXICAN_CHAR_DISPLAY_HEIGHT * gameScale * 0.42 - MEXICAN_CHAR_BOARD_OVERLAP * gameScale,
+      board.y + boardHeight - MEXICAN_CHAR_BOTTOM_OFFSET * gameScale + 550,
+      MEXICAN_CHAR_DISPLAY_HEIGHT * gameScale / mexicanChar.skeleton.data.height,
+    );
+
+    reelContainer.scale.set(gameScale);
+    reelContainer.x = board.x + GRID_X * gameScale;
+    reelContainer.y = board.y + GRID_Y * gameScale;
+
+    const scaledGridHeight = GRID_HEIGHT * gameScale;
+    const margin = board.y + GRID_Y * gameScale;
     bottom
       .clear()
-      .rect(0, GRID_HEIGHT + margin, screenWidth, screenHeight - (GRID_HEIGHT + margin))
+      .rect(0, scaledGridHeight + margin, screenWidth, screenHeight - (scaledGridHeight + margin))
       .fill({ color: 0x0, alpha: 0.0 });
 
     playButton.x = Math.round(screenWidth / 2);
-    const bottomCoverHeight = screenHeight - (GRID_HEIGHT + margin);
-    playButton.y = GRID_HEIGHT + margin + Math.round(bottomCoverHeight / 2) + PLAY_BUTTON_Y_OFFSET;
+    const bottomCoverHeight = screenHeight - (scaledGridHeight + margin);
+    playButton.y = scaledGridHeight + margin + Math.round(bottomCoverHeight / 2) + PLAY_BUTTON_Y_OFFSET * gameScale;
+  }
+
+  function layoutSpineByCenter(spine, centerX, centerY, scale) {
+    const data = spine.skeleton.data;
+
+    spine.scale.set(scale);
+    spine.x = centerX - (data.x + data.width / 2) * scale;
+    spine.y = centerY - (data.y + data.height / 2) * scale;
+  }
+
+  function layoutSpineByBottomRight(spine, right, bottom, scale) {
+    const data = spine.skeleton.data;
+
+    spine.scale.set(scale);
+    spine.x = right - (data.x + data.width) * scale;
+    spine.y = bottom - (data.y + data.height) * scale;
   }
 
   function isSymbolVisible(symbolContainer) {
