@@ -39,6 +39,7 @@ npm run preview
    - height: `800`
    - resolution: `window.devicePixelRatio || 1`
    - autoDensity: `true`
+   - resizeTo: `window`
 2. Append `app.canvas` vào `document.body`.
 3. Đăng ký asset Spine bằng `Assets.add`:
    - `female_skeleton` / `female_atlas`
@@ -55,13 +56,14 @@ npm run preview
    - `symbolTypes` gồm `Maracas`, `Wild`, `female`, `male`, `sombrero`.
    - Symbol PNG dùng `Sprite`.
    - Symbol Spine dùng `Spine.from(...)` và animation mặc định.
-7. Tạo background board bằng `/AA/Atest.png`.
-8. Đặt `reelContainer` vào đúng vùng grid của board.
-9. Dùng `Graphics` làm mask để ẩn symbol ngoài vùng reel.
-10. Tạo nút play từ `/AA/play_button.png`.
-11. Khi bấm play, gọi `startPlay()` để tween tất cả reel.
-12. Reel nào quay xong trước sẽ gọi `playLandingForReel()` để chạy animation `landing` cho các symbol Spine đang hiện trên reel đó.
-13. Khi reel cuối cùng quay xong, `reelsComplete()` bật lại nút play.
+7. Tạo background app bằng `/AA/BG5.png`.
+8. Tạo board bằng `/AA/Atest.png`.
+9. Đặt `reelContainer` vào đúng vùng grid của board.
+10. Dùng `Graphics` làm mask để ẩn symbol ngoài vùng reel.
+11. Tạo nút play từ `/AA/play_button.png`.
+12. Khi bấm play, gọi `startPlay()` để tween tất cả reel.
+13. Reel nào quay xong trước sẽ gọi `playLandingForReel()` để chạy animation `landing` cho các symbol Spine đang hiện trên reel đó.
+14. Khi reel cuối cùng quay xong, `reelsComplete()` bật lại nút play.
 
 ## Thông số gameplay/render quan trọng
 
@@ -74,8 +76,9 @@ npm run preview
 - Khi symbol đi qua phía trên, code random lại loại symbol bằng `setSymbolType`.
 - Blur khi quay dựa trên tốc độ thay đổi `position`: `r.blur.blurY = (r.position - r.previousPosition) * 8`.
 - Các reel dừng lần lượt từ trái sang phải nhờ `stopDelayPerReel` và `extraSpinStepsPerReel` trong `startPlay()`.
+- Khi bắt đầu quay, mỗi reel nhích lên một đoạn ngắn bằng `windUpDistance` trong `windUpTime`, rồi mới chạy tween quay chính.
 - Landing animation được chạy theo từng reel ngay khi reel đó hoàn thành tween, không chờ tất cả reel dừng.
-- Tween hiện tại là utility tự viết, dùng `Date.now()` và linear interpolation.
+- Tween hiện tại là utility tự viết, dùng `Date.now()` và interpolation. Spin chính dùng `easeOutCubic` để reel quay nhanh lúc đầu rồi chậm dần trước khi dừng.
 
 ## Asset đang được dùng
 
@@ -83,7 +86,7 @@ Trong `src/main.js`, các file đang load/dùng trực tiếp:
 
 - `/AA/Maracas.png`
 - `/AA/Wild.png`
-- `/AA/Board.png` được load nhưng chưa thấy dùng trực tiếp để tạo sprite.
+- `/AA/BG5.png`
 - `/AA/Atest.png`
 - `/AA/play_button.png`
 - `/Symbol/Female_Special.json`
@@ -106,7 +109,8 @@ Nếu thay Spine asset, cần kiểm tra tên animation trong file Spine mới c
 ## Điểm cần chú ý khi phát triển tiếp
 
 - Tween tự viết đủ cho prototype, nhưng nếu game phức tạp hơn nên cân nhắc dùng tween library để dễ easing, cancel, sequence.
-- App đang có kích thước canvas cố định `920x800`; nếu cần responsive/mobile cần viết thêm logic resize và scale stage.
+- App dùng canvas resize theo viewport bằng `resizeTo: window`. `layoutScene()` căn lại background, board, reel và play button sau resize.
+- `/AA/BG5.png` được scale kiểu cover để phủ toàn màn hình mà không bị méo tỉ lệ.
 - Canvas đang dùng `resolution` theo `devicePixelRatio` để asset Spine male/female sắc hơn trên màn hình high-DPI. Nếu thấy mờ lại, kiểm tra trước phần init Pixi này.
 
 ## Quy ước chỉnh sửa nên giữ

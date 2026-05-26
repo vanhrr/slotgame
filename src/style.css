@@ -1,9 +1,7 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100vw;
+  height: 100vh;
   background-color: #f8d1e4ff;
   overflow: hidden;
   margin: 0;
@@ -11,4 +9,5 @@ body {
 
 canvas {
   background-color: #2d1414;
+  display: block;
 }

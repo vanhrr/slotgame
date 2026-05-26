@@ -20,6 +20,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     height: 800,
     resolution: window.devicePixelRatio || 1,
     autoDensity: true,
+    resizeTo: window,
   });
 
   // Append the application canvas to the document body
@@ -35,6 +36,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
   // Load the textures
   await Assets.load([
+    "/AA/BG5.png",
     "/AA/Maracas.png",
     "/AA/Wild.png",
     "/AA/Atest.png",
@@ -84,6 +86,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const BOARD_Y_OFFSET = -50;
   const PLAY_BUTTON_Y_OFFSET = -50;
   const PLAY_BUTTON_WIDTH = 90;
+  const BG_ORIG_WIDTH = 2752;
+  const BG_ORIG_HEIGHT = 1536;
   const BLUR_SPEED = 8;
   const DEFAULT_CELL_SCALE = 1;
   const DEFAULT_CELL_OFFSET_X = 0;
@@ -332,17 +336,13 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     reels.push(reel);
   }
 
-  // Create background sprite
-  const background = new Sprite(Texture.from("/AA/Atest.png"));
-  background.width = BOARD_DISPLAY_WIDTH;
-  background.height = BOARD_DISPLAY_HEIGHT;
-  background.x = Math.round((app.screen.width - background.width) / 2);
-  background.y = Math.round((app.screen.height - background.height) / 2) + BOARD_Y_OFFSET;
-  app.stage.addChild(background);
+  // Create app background sprite
+  const appBackground = new Sprite(Texture.from("/AA/BG5.png"));
+  app.stage.addChild(appBackground);
 
-  // Position reelContainer inside the Board's grid area
-  reelContainer.x = background.x + GRID_X;
-  reelContainer.y = background.y + GRID_Y;
+  // Create board sprite
+  const board = new Sprite(Texture.from("/AA/Atest.png"));
+  app.stage.addChild(board);
 
   // Create a mask to hide symbols outside the reel area.
   // Extend it left so the first reel can overlap the board instead of being clipped.
@@ -356,20 +356,12 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
   //------------------------------------------------------------------------------------------------------
   // Build bottom covers
-  const margin = background.y + GRID_Y;
-
-  const bottom = new Graphics()
-    .rect(0, GRID_HEIGHT + margin, app.screen.width, app.screen.height - (GRID_HEIGHT + margin))
-    .fill({ color: 0x0, alpha: 0.0 });
+  const bottom = new Graphics();
 
   const playButton = new Sprite(Texture.from("/AA/play_button.png"));
   playButton.anchor.set(0.5);
   const baseScale = PLAY_BUTTON_WIDTH / playButton.texture.width;
   playButton.scale.set(baseScale);
-
-  playButton.x = Math.round(app.screen.width / 2);
-  const bottomCoverHeight = app.screen.height - (GRID_HEIGHT + margin);
-  playButton.y = GRID_HEIGHT + margin + Math.round(bottomCoverHeight / 2) + PLAY_BUTTON_Y_OFFSET;
 
   playButton.eventMode = "static";
   playButton.cursor = "pointer";
@@ -395,6 +387,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
   bottom.addChild(playButton);
   app.stage.addChild(bottom);
+  app.renderer.on("resize", layoutScene);
+  layoutScene();
 
   let running = false;
   function startPlay() {
@@ -408,11 +402,14 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
     const baseSpinDistance = 12;
     const baseSpinTime = 1500;
-    const stopDelayPerReel = 100;
+    const stopDelayPerReel = 200;
     const extraSpinStepsPerReel = 4;
+    const windUpDistance = 0.18;
+    const windUpTime = 120;
 
     for (let i = 0; i < reels.length; i++) {
       const r = reels[i];
+      const startPosition = r.position;
       const spinDistance = baseSpinDistance + i * extraSpinStepsPerReel;
       const spinTime = baseSpinTime + i * stopDelayPerReel;
       const isLastReel = i === reels.length - 1;
@@ -420,13 +417,22 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       tweenTo(
         r,
         "position",
-        r.position + spinDistance,
-        spinTime,
+        startPosition - windUpDistance,
+        windUpTime,
         null,
         () => {
-          updateReelSymbols(r);
-          playLandingForReel(r);
-          if (isLastReel) reelsComplete();
+          tweenTo(
+            r,
+            "position",
+            startPosition + spinDistance,
+            spinTime,
+            null,
+            () => {
+              updateReelSymbols(r);
+              playLandingForReel(r);
+              if (isLastReel) reelsComplete();
+            },
+          );
         },
       );
     }
@@ -451,6 +457,39 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     running = false;
     playButton.alpha = 1.0;
     playButton.cursor = "pointer";
+  }
+
+  function layoutScene() {
+    const screenWidth = app.screen.width;
+    const screenHeight = app.screen.height;
+
+    const bgScale = Math.max(
+      screenWidth / BG_ORIG_WIDTH,
+      screenHeight / BG_ORIG_HEIGHT,
+    );
+
+    appBackground.width = BG_ORIG_WIDTH * bgScale;
+    appBackground.height = BG_ORIG_HEIGHT * bgScale;
+    appBackground.x = Math.round((screenWidth - appBackground.width) / 2);
+    appBackground.y = Math.round((screenHeight - appBackground.height) / 2);
+
+    board.width = BOARD_DISPLAY_WIDTH;
+    board.height = BOARD_DISPLAY_HEIGHT;
+    board.x = Math.round((screenWidth - board.width) / 2);
+    board.y = Math.round((screenHeight - board.height) / 2) + BOARD_Y_OFFSET;
+
+    reelContainer.x = board.x + GRID_X;
+    reelContainer.y = board.y + GRID_Y;
+
+    const margin = board.y + GRID_Y;
+    bottom
+      .clear()
+      .rect(0, GRID_HEIGHT + margin, screenWidth, screenHeight - (GRID_HEIGHT + margin))
+      .fill({ color: 0x0, alpha: 0.0 });
+
+    playButton.x = Math.round(screenWidth / 2);
+    const bottomCoverHeight = screenHeight - (GRID_HEIGHT + margin);
+    playButton.y = GRID_HEIGHT + margin + Math.round(bottomCoverHeight / 2) + PLAY_BUTTON_Y_OFFSET;
   }
 
   function isSymbolVisible(symbolContainer) {
