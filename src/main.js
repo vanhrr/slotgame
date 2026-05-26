@@ -31,7 +31,6 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   await Assets.load([
     "/AA/Maracas.png",
     "/AA/Wild.png",
-    "/AA/Board.png",
     "/AA/Atest.png",
     "/AA/play_button.png",
     "female_skeleton",
@@ -46,10 +45,11 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const BOARD_ORIG_HEIGHT = 1566;
 
   const BOARD_DISPLAY_WIDTH = 700;
-  const BOARD_DISPLAY_HEIGHT = 700;
+  const BOARD_DISPLAY_SCALE = BOARD_DISPLAY_WIDTH / BOARD_ORIG_WIDTH;
+  const BOARD_DISPLAY_HEIGHT = BOARD_ORIG_HEIGHT * BOARD_DISPLAY_SCALE;
 
-  const scaleX = BOARD_DISPLAY_WIDTH / BOARD_ORIG_WIDTH;
-  const scaleY = BOARD_DISPLAY_HEIGHT / BOARD_ORIG_HEIGHT;
+  const scaleX = BOARD_DISPLAY_SCALE;
+  const scaleY = BOARD_DISPLAY_SCALE;
 
   // Grid coordinates relative to original Atest.png (1908x1566).
   // Keep the reel mask inside the gold frame so symbols do not overlap the board.
@@ -69,23 +69,72 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const REEL_COUNT = 5;
   const ROW_COUNT = 4;
   const SYMBOLS_PER_REEL = ROW_COUNT + 1;
+  const REEL_GAP = 6;
+  const FIT_SCALE = 0.85;
+  const PNG_SCALE = 0.7;
+  const SYMBOL_OFFSET = -6;
+  const BOARD_Y_OFFSET = -50;
+  const PLAY_BUTTON_Y_OFFSET = -50;
+  const PLAY_BUTTON_WIDTH = 90;
+  const BLUR_SPEED = 8;
+  const DEFAULT_CELL_SCALE = 1;
+  const DEFAULT_CELL_OFFSET_X = 0;
+  const DEFAULT_CELL_OFFSET_Y = 0;
+  const DEFAULT_CELL_OVERFLOW_X = 0;
+  const DEFAULT_CELL_OVERFLOW_Y = 0;
+  const SYMBOL_POOL_LIMIT = SYMBOLS_PER_REEL;
 
   // Dimensions of each cell in the 5x4 grid
-  const REEL_WIDTH = GRID_WIDTH / REEL_COUNT;
+  const REEL_WIDTH = (GRID_WIDTH - REEL_GAP * (REEL_COUNT - 1)) / REEL_COUNT;
   const SYMBOL_SIZE = SYMBOL_TRACK_HEIGHT / ROW_COUNT;
 
-  // Create different slot symbols (mix of textures and spine string IDs)
   const symbolTypes = [
-    Texture.from("/AA/Maracas.png"),
-    Texture.from("/AA/Wild.png"),
-    "female",
-    "male",
-    "sombrero",
+    { id: "maracas", kind: "texture", texture: Texture.from("/AA/Maracas.png") },
+    { id: "wild", kind: "texture", texture: Texture.from("/AA/Wild.png") },
+    {
+      id: "female",
+      kind: "spine",
+      layout: "cover",
+      skeleton: "female_skeleton",
+      atlas: "female_atlas",
+      idle: "idle",
+      cellScale: 1.08,
+      cellOffsetX: -5,
+      cellOffsetY: -3,
+      cellOverflowX: 18,
+      cellOverflowY: 18,
+    },
+    {
+      id: "male",
+      kind: "spine",
+      layout: "cover",
+      skeleton: "male_skeleton",
+      atlas: "male_atlas",
+      idle: "idle",
+      cellScale: 1.08,
+      cellOffsetX: -5,
+      cellOffsetY: -3,
+      cellOverflowX: 18,
+      cellOverflowY: 18,
+    },
+    {
+      id: "sombrero",
+      kind: "spine",
+      layout: "fit",
+      skeleton: "sombrero_skeleton",
+      atlas: "sombrero_atlas",
+      idle: "default",
+    },
   ];
 
-  function setupSymbolLayout(symbolContainer, isSpine, displayObject) {
+  function setupSymbolLayout(symbolConfig, displayObject) {
+    const isSpine = symbolConfig.kind === "spine";
     let origWidth, origHeight;
+    let boundsX = 0;
+    let boundsY = 0;
     if (isSpine) {
+      boundsX = displayObject.skeleton.data.x;
+      boundsY = displayObject.skeleton.data.y;
       origWidth = displayObject.skeleton.data.width;
       origHeight = displayObject.skeleton.data.height;
     } else {
@@ -93,65 +142,150 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       origHeight = displayObject.texture.height;
     }
 
-    const scale = Math.min(
-      REEL_WIDTH / origWidth,
-      SYMBOL_SIZE / origHeight,
-    ) * 0.85;
+    if (symbolConfig.layout === "cover") {
+      const scale = Math.max(REEL_WIDTH / origWidth, SYMBOL_SIZE / origHeight)
+        * (symbolConfig.cellScale ?? DEFAULT_CELL_SCALE);
+      const offsetX = symbolConfig.cellOffsetX ?? DEFAULT_CELL_OFFSET_X;
+      const offsetY = symbolConfig.cellOffsetY ?? DEFAULT_CELL_OFFSET_Y;
 
-    displayObject.scale.set(scale);
+      displayObject.scale.set(scale);
+      displayObject.x = (REEL_WIDTH - origWidth * scale) / 2 - boundsX * scale + offsetX;
+      displayObject.y = (SYMBOL_SIZE - origHeight * scale) / 2 - boundsY * scale + offsetY;
+    } else if (isSpine) {
+      const scale = Math.min(
+        REEL_WIDTH / origWidth,
+        SYMBOL_SIZE / origHeight,
+      ) * FIT_SCALE;
 
-    if (isSpine) {
-      displayObject.x = REEL_WIDTH / 2 - 6;
-      displayObject.y = SYMBOL_SIZE / 2 - 6;
+      displayObject.scale.set(scale);
+      displayObject.x = REEL_WIDTH / 2 + SYMBOL_OFFSET;
+      displayObject.y = SYMBOL_SIZE / 2 + SYMBOL_OFFSET;
     } else {
-      displayObject.x = Math.round((REEL_WIDTH - displayObject.width) / 2) - 6;
-      displayObject.y = Math.round((SYMBOL_SIZE - displayObject.height) / 2) - 6;
+      const scale = Math.min(
+        REEL_WIDTH / origWidth,
+        SYMBOL_SIZE / origHeight,
+      ) * PNG_SCALE;
+
+      displayObject.scale.set(scale);
+      displayObject.x = Math.round((REEL_WIDTH - displayObject.width) / 2) + SYMBOL_OFFSET;
+      displayObject.y = Math.round((SYMBOL_SIZE - displayObject.height) / 2) + SYMBOL_OFFSET;
     }
   }
 
-  function setSymbolType(symbolContainer, newType) {
-    // Remove old child if any
-    if (symbolContainer.children.length > 0) {
-      const oldChild = symbolContainer.removeChildAt(0);
-      oldChild.destroy({ children: true });
-    }
+  function createSymbolContainer() {
+    const symbolContainer = new Container();
+    const viewLayer = new Container();
 
-    symbolContainer.symbolType = newType;
-    let displayObject;
-    let isSpine = false;
+    symbolContainer.viewLayer = viewLayer;
+    symbolContainer.addChild(viewLayer);
 
-    if (newType === "female" || newType === "male" || newType === "sombrero") {
-      isSpine = true;
-      let skeleton, atlas, defaultAnim;
-      if (newType === "female") {
-        skeleton = "female_skeleton";
-        atlas = "female_atlas";
-        defaultAnim = "idle";
-      } else if (newType === "male") {
-        skeleton = "male_skeleton";
-        atlas = "male_atlas";
-        defaultAnim = "idle";
-      } else {
-        skeleton = "sombrero_skeleton";
-        atlas = "sombrero_atlas";
-        defaultAnim = "default";
-      }
+    return symbolContainer;
+  }
 
-      displayObject = Spine.from({
-        skeleton: skeleton,
-        atlas: atlas
+  function getRandomSymbolType() {
+    return symbolTypes[Math.floor(Math.random() * symbolTypes.length)];
+  }
+
+  function resetSpineAnimation(displayObject, idleAnimation) {
+    displayObject.state.clearTracks();
+    displayObject.skeleton.setToSetupPose();
+    displayObject.state.setAnimation(0, idleAnimation, true);
+  }
+
+  function createSymbolView(symbolConfig) {
+    if (symbolConfig.kind === "spine") {
+      const displayObject = Spine.from({
+        skeleton: symbolConfig.skeleton,
+        atlas: symbolConfig.atlas,
       });
 
-      displayObject.state.setAnimation(0, defaultAnim, true);
-    } else {
-      displayObject = new Sprite(newType);
+      resetSpineAnimation(displayObject, symbolConfig.idle);
+      return displayObject;
     }
 
-    symbolContainer.addChild(displayObject);
-    symbolContainer.displayObject = displayObject;
-    symbolContainer.isSpine = isSpine;
+    return new Sprite(symbolConfig.texture);
+  }
 
-    setupSymbolLayout(symbolContainer, isSpine, displayObject);
+  const symbolPools = new Map();
+
+  function acquireSymbolView(symbolConfig) {
+    const pool = symbolPools.get(symbolConfig.id);
+    const displayObject = pool?.pop() ?? createSymbolView(symbolConfig);
+
+    if (symbolConfig.kind === "spine") {
+      resetSpineAnimation(displayObject, symbolConfig.idle);
+    }
+
+    return displayObject;
+  }
+
+  function releaseSymbolView(symbolConfig, displayObject) {
+    const pool = symbolPools.get(symbolConfig.id) ?? [];
+    symbolPools.set(symbolConfig.id, pool);
+
+    if (pool.length >= SYMBOL_POOL_LIMIT) {
+      displayObject.destroy({ children: true });
+      return;
+    }
+
+    displayObject.visible = false;
+    pool.push(displayObject);
+  }
+
+  function getCellMask(symbolContainer) {
+    if (!symbolContainer.cellMask) {
+      symbolContainer.cellMask = new Graphics();
+    }
+
+    return symbolContainer.cellMask;
+  }
+
+  function setCellMaskEnabled(symbolContainer, enabled) {
+    if (enabled) {
+      const cellMask = getCellMask(symbolContainer);
+      const overflowX = symbolContainer.symbolConfig.cellOverflowX ?? DEFAULT_CELL_OVERFLOW_X;
+      const overflowY = symbolContainer.symbolConfig.cellOverflowY ?? DEFAULT_CELL_OVERFLOW_Y;
+
+      cellMask
+        .clear()
+        .rect(
+          -overflowX,
+          -overflowY,
+          REEL_WIDTH + overflowX * 2,
+          SYMBOL_SIZE + overflowY * 2,
+        )
+        .fill({ color: 0xffffff });
+
+      if (!cellMask.parent) {
+        symbolContainer.addChild(cellMask);
+      }
+
+      symbolContainer.viewLayer.mask = cellMask;
+      return;
+    }
+
+    symbolContainer.viewLayer.mask = null;
+
+    if (symbolContainer.cellMask?.parent) {
+      symbolContainer.cellMask.parent.removeChild(symbolContainer.cellMask);
+    }
+  }
+
+  function setSymbolType(symbolContainer, symbolConfig) {
+    if (symbolContainer.displayObject) {
+      symbolContainer.viewLayer.removeChild(symbolContainer.displayObject);
+      releaseSymbolView(symbolContainer.symbolConfig, symbolContainer.displayObject);
+    }
+
+    const displayObject = acquireSymbolView(symbolConfig);
+
+    displayObject.visible = true;
+    setupSymbolLayout(symbolConfig, displayObject);
+    symbolContainer.symbolConfig = symbolConfig;
+    symbolContainer.displayObject = displayObject;
+    symbolContainer.isSpine = symbolConfig.kind === "spine";
+    symbolContainer.viewLayer.addChild(displayObject);
+    setCellMaskEnabled(symbolContainer, symbolConfig.layout === "cover");
   }
 
   // Build the reels
@@ -161,7 +295,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   for (let i = 0; i < REEL_COUNT; i++) {
     const rc = new Container();
 
-    rc.x = i * REEL_WIDTH;
+    rc.x = i * (REEL_WIDTH + REEL_GAP);
     reelContainer.addChild(rc);
 
     const reel = {
@@ -177,10 +311,9 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
     // Build symbols for 4 visible rows plus 1 hidden symbol at the top.
     for (let j = 0; j < SYMBOLS_PER_REEL; j++) {
-      const symbolContainer = new Container();
+      const symbolContainer = createSymbolContainer();
 
-      const randomType = symbolTypes[Math.floor(Math.random() * symbolTypes.length)];
-      setSymbolType(symbolContainer, randomType);
+      setSymbolType(symbolContainer, getRandomSymbolType());
 
       symbolContainer.y = j * SYMBOL_SIZE - SYMBOL_SIZE;
 
@@ -190,12 +323,12 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     reels.push(reel);
   }
 
-  // Create background sprite from Board.png
+  // Create background sprite
   const background = new Sprite(Texture.from("/AA/Atest.png"));
   background.width = BOARD_DISPLAY_WIDTH;
   background.height = BOARD_DISPLAY_HEIGHT;
   background.x = Math.round((app.screen.width - background.width) / 2);
-  background.y = Math.round((app.screen.height - background.height) / 2) - 50;
+  background.y = Math.round((app.screen.height - background.height) / 2) + BOARD_Y_OFFSET;
   app.stage.addChild(background);
 
   // Position reelContainer inside the Board's grid area
@@ -221,12 +354,12 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
   const playButton = new Sprite(Texture.from("/AA/play_button.png"));
   playButton.anchor.set(0.5);
-  const baseScale = 90 / playButton.texture.width;
+  const baseScale = PLAY_BUTTON_WIDTH / playButton.texture.width;
   playButton.scale.set(baseScale);
 
   playButton.x = Math.round(app.screen.width / 2);
   const bottomCoverHeight = app.screen.height - (GRID_HEIGHT + margin);
-  playButton.y = GRID_HEIGHT + margin + Math.round(bottomCoverHeight / 2) - 50;
+  playButton.y = GRID_HEIGHT + margin + Math.round(bottomCoverHeight / 2) + PLAY_BUTTON_Y_OFFSET;
 
   playButton.eventMode = "static";
   playButton.cursor = "pointer";
@@ -281,6 +414,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
         spinTime,
         null,
         () => {
+          updateReelSymbols(r);
           playLandingForReel(r);
           if (isLastReel) reelsComplete();
         },
@@ -291,10 +425,10 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   function playLandingForReel(reel) {
     for (let j = 0; j < reel.symbols.length; j++) {
       const s = reel.symbols[j];
-      if (s.isSpine && s.y >= 0 && s.y < GRID_HEIGHT - 10) {
+      if (s.isSpine && isSymbolVisible(s)) {
         const spineObj = s.displayObject;
         const landingAnim = "landing";
-        const idleAnim = s.symbolType === "sombrero" ? "default" : "idle";
+        const idleAnim = s.symbolConfig.idle;
 
         spineObj.state.setAnimation(0, landingAnim, false);
         spineObj.state.addAnimation(0, idleAnim, true, 0);
@@ -309,30 +443,34 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     playButton.cursor = "pointer";
   }
 
-  // Listen for animate update.
-  app.ticker.add(() => {
-    // Update the slots.
-    for (let i = 0; i < reels.length; i++) {
-      const r = reels[i];
-      // Update blur filter y amount based on speed.
-      r.blur.blurY = (r.position - r.previousPosition) * 8;
-      r.previousPosition = r.position;
+  function isSymbolVisible(symbolContainer) {
+    return (
+      symbolContainer.y > -SYMBOL_SIZE / 2
+      && symbolContainer.y < GRID_HEIGHT - SYMBOL_SIZE / 2
+    );
+  }
 
-      // Update symbol positions on reel.
-      for (let j = 0; j < r.symbols.length; j++) {
-        const s = r.symbols[j];
-        const prevy = s.y;
+  function updateReelSymbols(reel) {
+    for (let j = 0; j < reel.symbols.length; j++) {
+      const s = reel.symbols[j];
+      const prevy = s.y;
 
-        s.y = ((r.position + j) % r.symbols.length) * SYMBOL_SIZE - SYMBOL_SIZE;
+      s.y = ((reel.position + j) % reel.symbols.length) * SYMBOL_SIZE - SYMBOL_SIZE;
 
-        if (s.y < 0 && prevy > SYMBOL_SIZE) {
-          // Detect going over and swap a texture/symbol type.
-          const randomType = symbolTypes[Math.floor(Math.random() * symbolTypes.length)];
-          setSymbolType(s, randomType);
-        }
+      if (s.y < 0 && prevy > SYMBOL_SIZE) {
+        setSymbolType(s, getRandomSymbolType());
       }
     }
-  });
+  }
+
+  function updateReels() {
+    for (let i = 0; i < reels.length; i++) {
+      const r = reels[i];
+      r.blur.blurY = (r.position - r.previousPosition) * BLUR_SPEED;
+      r.previousPosition = r.position;
+      updateReelSymbols(r);
+    }
+  }
 
   // Very simple tweening utility function. This should be replaced with a proper tweening library in a real product.
   const tweening = [];
@@ -360,8 +498,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
     return tween;
   }
-  // Listen for animate update.
-  app.ticker.add(() => {
+  function updateTweens() {
     const now = Date.now();
     const remove = [];
 
@@ -384,6 +521,11 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     for (let i = 0; i < remove.length; i++) {
       tweening.splice(tweening.indexOf(remove[i]), 1);
     }
+  }
+
+  app.ticker.add(() => {
+    updateReels();
+    updateTweens();
   });
 
   // Basic lerp funtion.
