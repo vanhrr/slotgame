@@ -2,13 +2,9 @@ import {
   Application,
   Assets,
   BlurFilter,
-  Color,
   Container,
-  FillGradient,
   Graphics,
   Sprite,
-  Text,
-  TextStyle,
   Texture,
 } from "pixi.js";
 import { Spine } from "@esotericsoftware/spine-pixi-v8";
@@ -46,8 +42,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     "sombrero_atlas",
   ]);
 
-  const BOARD_ORIG_WIDTH = 1111;
-  const BOARD_ORIG_HEIGHT = 1099;
+  const BOARD_ORIG_WIDTH = 1908;
+  const BOARD_ORIG_HEIGHT = 1566;
 
   const BOARD_DISPLAY_WIDTH = 700;
   const BOARD_DISPLAY_HEIGHT = 700;
@@ -55,21 +51,28 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const scaleX = BOARD_DISPLAY_WIDTH / BOARD_ORIG_WIDTH;
   const scaleY = BOARD_DISPLAY_HEIGHT / BOARD_ORIG_HEIGHT;
 
-  // Grid coordinates relative to original Board.png (1111x1099)
-  const GRID_ORIG_X = 121;
-  const GRID_ORIG_Y = 121;
-  const GRID_ORIG_WIDTH = 988 - 121;  // 867
-  const GRID_ORIG_HEIGHT = 1023 - 121; // 911
+  // Grid coordinates relative to original Atest.png (1908x1566).
+  // Keep the reel mask inside the gold frame so symbols do not overlap the board.
+  const GRID_ORIG_X = 205;
+  const GRID_ORIG_Y = 210;
+  const GRID_ORIG_WIDTH = 1510;
+  const GRID_ORIG_HEIGHT = 1190;
+  const SYMBOL_TRACK_ORIG_HEIGHT = 1210;
 
   // Scaled coordinates on screen
   const GRID_X = GRID_ORIG_X * scaleX;
   const GRID_Y = GRID_ORIG_Y * scaleY;
   const GRID_WIDTH = GRID_ORIG_WIDTH * scaleX;
   const GRID_HEIGHT = GRID_ORIG_HEIGHT * scaleY;
+  const SYMBOL_TRACK_HEIGHT = SYMBOL_TRACK_ORIG_HEIGHT * scaleY;
+
+  const REEL_COUNT = 5;
+  const ROW_COUNT = 4;
+  const SYMBOLS_PER_REEL = ROW_COUNT + 1;
 
   // Dimensions of each cell in the 5x4 grid
-  const REEL_WIDTH = GRID_WIDTH / 5;
-  const SYMBOL_SIZE = GRID_HEIGHT / 4;
+  const REEL_WIDTH = GRID_WIDTH / REEL_COUNT;
+  const SYMBOL_SIZE = SYMBOL_TRACK_HEIGHT / ROW_COUNT;
 
   // Create different slot symbols (mix of textures and spine string IDs)
   const symbolTypes = [
@@ -98,11 +101,11 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     displayObject.scale.set(scale);
 
     if (isSpine) {
-      displayObject.x = REEL_WIDTH / 2;
-      displayObject.y = SYMBOL_SIZE / 2;
+      displayObject.x = REEL_WIDTH / 2 - 6;
+      displayObject.y = SYMBOL_SIZE / 2 - 6;
     } else {
-      displayObject.x = Math.round((REEL_WIDTH - displayObject.width) / 2);
-      displayObject.y = Math.round((SYMBOL_SIZE - displayObject.height) / 2);
+      displayObject.x = Math.round((REEL_WIDTH - displayObject.width) / 2) - 6;
+      displayObject.y = Math.round((SYMBOL_SIZE - displayObject.height) / 2) - 6;
     }
   }
 
@@ -155,7 +158,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const reels = [];
   const reelContainer = new Container();
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < REEL_COUNT; i++) {
     const rc = new Container();
 
     rc.x = i * REEL_WIDTH;
@@ -172,8 +175,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     reel.blur.blurY = 0;
     rc.filters = [reel.blur];
 
-    // Build the symbols (7 symbols total: 6 visible, 1 hidden at the top)
-    for (let j = 0; j < 7; j++) {
+    // Build symbols for 4 visible rows plus 1 hidden symbol at the top.
+    for (let j = 0; j < SYMBOLS_PER_REEL; j++) {
       const symbolContainer = new Container();
 
       const randomType = symbolTypes[Math.floor(Math.random() * symbolTypes.length)];
@@ -209,45 +212,12 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   app.stage.addChild(reelContainer);
 
   //------------------------------------------------------------------------------------------------------
-  // Build top & bottom covers and position reelContainer
+  // Build bottom covers
   const margin = background.y + GRID_Y;
-  const top = new Graphics()
-    .rect(0, 0, app.screen.width, margin)
-    .fill({ color: 0x0, alpha: 0.4 });
+
   const bottom = new Graphics()
     .rect(0, GRID_HEIGHT + margin, app.screen.width, app.screen.height - (GRID_HEIGHT + margin))
     .fill({ color: 0x0, alpha: 0.0 });
-
-  // Create gradient fill
-  const fill = new FillGradient(0, 0, 0, 2);
-
-  const colors = [0xffffff, 0x00ff99].map((color) =>
-    Color.shared.setValue(color).toNumber(),
-  );
-
-  colors.forEach((number, index) => {
-    const ratio = index / colors.length;
-
-    fill.addColorStop(ratio, number);
-  });
-
-  // Add play text
-  const style = new TextStyle({
-    fontFamily: "Arial",
-    fontSize: 36,
-    fontStyle: "italic",
-    fontWeight: "bold",
-    fill: { fill },
-    stroke: { color: 0x4a1850, width: 5 },
-    dropShadow: {
-      color: 0x000000,
-      angle: Math.PI / 6,
-      blur: 4,
-      distance: 6,
-    },
-    wordWrap: true,
-    wordWrapWidth: 440,
-  });
 
   const playButton = new Sprite(Texture.from("/AA/play_button.png"));
   playButton.anchor.set(0.5);
@@ -293,11 +263,16 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     playButton.scale.set(baseScale);
     playButton.cursor = "default";
 
-    const spinDistance = 20; // số bước quay giống nhau
-    const spinTime = 1200;   // thời gian giống nhau
+    const baseSpinDistance = 20;
+    const baseSpinTime = 1200;
+    const stopDelayPerReel = 100;
+    const extraSpinStepsPerReel = 4;
 
     for (let i = 0; i < reels.length; i++) {
       const r = reels[i];
+      const spinDistance = baseSpinDistance + i * extraSpinStepsPerReel;
+      const spinTime = baseSpinTime + i * stopDelayPerReel;
+      const isLastReel = i === reels.length - 1;
 
       tweenTo(
         r,
@@ -305,32 +280,33 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
         r.position + spinDistance,
         spinTime,
         null,
-        i === reels.length - 1 ? reelsComplete : null,
+        () => {
+          playLandingForReel(r);
+          if (isLastReel) reelsComplete();
+        },
       );
     }
   }
 
-  // Reels done handler.
+  function playLandingForReel(reel) {
+    for (let j = 0; j < reel.symbols.length; j++) {
+      const s = reel.symbols[j];
+      if (s.isSpine && s.y >= 0 && s.y < GRID_HEIGHT - 10) {
+        const spineObj = s.displayObject;
+        const landingAnim = "landing";
+        const idleAnim = s.symbolType === "sombrero" ? "default" : "idle";
+
+        spineObj.state.setAnimation(0, landingAnim, false);
+        spineObj.state.addAnimation(0, idleAnim, true, 0);
+      }
+    }
+  }
+
+  // All reels done handler.
   function reelsComplete() {
     running = false;
     playButton.alpha = 1.0;
     playButton.cursor = "pointer";
-
-    // Play landing animation on all visible Spine symbols
-    for (let i = 0; i < reels.length; i++) {
-      const r = reels[i];
-      for (let j = 0; j < r.symbols.length; j++) {
-        const s = r.symbols[j];
-        if (s.isSpine && s.y >= 0 && s.y < GRID_HEIGHT - 10) {
-          const spineObj = s.displayObject;
-          const landingAnim = "landing";
-          const idleAnim = s.symbolType === "sombrero" ? "default" : "idle";
-
-          spineObj.state.setAnimation(0, landingAnim, false);
-          spineObj.state.addAnimation(0, idleAnim, true, 0);
-        }
-      }
-    }
   }
 
   // Listen for animate update.
