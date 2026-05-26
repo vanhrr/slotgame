@@ -75,9 +75,9 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   // Grid coordinates relative to original Atest.png (1908x1566).
   // Keep the reel mask inside the gold frame so symbols do not overlap the board.
   const GRID_ORIG_X = 205;
-  const GRID_ORIG_Y = 210;
+  const GRID_ORIG_Y = 202;
   const GRID_ORIG_WIDTH = 1510;
-  const GRID_ORIG_HEIGHT = 1190;
+  const GRID_ORIG_HEIGHT = 1201;
   const SYMBOL_TRACK_ORIG_HEIGHT = 1210;
   const FIRST_REEL_OVERLAP_ORIG = 0;
 
@@ -199,7 +199,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
       displayObject.scale.set(scale);
       displayObject.x = Math.round((REEL_WIDTH - displayObject.width) / 2) + SYMBOL_OFFSET;
-      displayObject.y = Math.round((SYMBOL_SIZE - displayObject.height) / 2) + SYMBOL_OFFSET;
+      displayObject.y = Math.round((SYMBOL_SIZE - displayObject.height) / 2) + SYMBOL_OFFSET + 5;
     }
   }
 
