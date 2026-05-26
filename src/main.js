@@ -14,7 +14,13 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const app = new Application();
 
   // Initialize the application
-  await app.init({ background: "#f8d1e4ff", width: 920, height: 800 });
+  await app.init({
+    background: "#f8d1e4ff",
+    width: 920,
+    height: 800,
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
+  });
 
   // Append the application canvas to the document body
   document.body.appendChild(app.canvas);
@@ -58,6 +64,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const GRID_ORIG_WIDTH = 1510;
   const GRID_ORIG_HEIGHT = 1190;
   const SYMBOL_TRACK_ORIG_HEIGHT = 1210;
+  const FIRST_REEL_OVERLAP_ORIG = 0;
 
   // Scaled coordinates on screen
   const GRID_X = GRID_ORIG_X * scaleX;
@@ -65,6 +72,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const GRID_WIDTH = GRID_ORIG_WIDTH * scaleX;
   const GRID_HEIGHT = GRID_ORIG_HEIGHT * scaleY;
   const SYMBOL_TRACK_HEIGHT = SYMBOL_TRACK_ORIG_HEIGHT * scaleY;
+  const FIRST_REEL_OVERLAP = FIRST_REEL_OVERLAP_ORIG * scaleX;
 
   const REEL_COUNT = 5;
   const ROW_COUNT = 4;
@@ -98,7 +106,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       skeleton: "female_skeleton",
       atlas: "female_atlas",
       idle: "idle",
-      cellScale: 1.08,
+      cellScale: 1.1,
       cellOffsetX: -5,
       cellOffsetY: -3,
       cellOverflowX: 18,
@@ -111,7 +119,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       skeleton: "male_skeleton",
       atlas: "male_atlas",
       idle: "idle",
-      cellScale: 1.08,
+      cellScale: 1.1,
       cellOffsetX: -5,
       cellOffsetY: -3,
       cellOverflowX: 18,
@@ -296,6 +304,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     const rc = new Container();
 
     rc.x = i * (REEL_WIDTH + REEL_GAP);
+    if (i === 0) rc.x -= FIRST_REEL_OVERLAP;
     reelContainer.addChild(rc);
 
     const reel = {
@@ -335,9 +344,10 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   reelContainer.x = background.x + GRID_X;
   reelContainer.y = background.y + GRID_Y;
 
-  // Create a mask to hide symbols outside the reel area
+  // Create a mask to hide symbols outside the reel area.
+  // Extend it left so the first reel can overlap the board instead of being clipped.
   const reelMask = new Graphics()
-    .rect(0, 0, GRID_WIDTH, GRID_HEIGHT)
+    .rect(-FIRST_REEL_OVERLAP, 0, GRID_WIDTH + FIRST_REEL_OVERLAP, GRID_HEIGHT)
     .fill({ color: 0xffffff });
   reelContainer.addChild(reelMask);
   reelContainer.mask = reelMask;
@@ -396,8 +406,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     playButton.scale.set(baseScale);
     playButton.cursor = "default";
 
-    const baseSpinDistance = 20;
-    const baseSpinTime = 1200;
+    const baseSpinDistance = 12;
+    const baseSpinTime = 1500;
     const stopDelayPerReel = 100;
     const extraSpinStepsPerReel = 4;
 

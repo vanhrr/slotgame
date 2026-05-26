@@ -37,6 +37,8 @@ npm run preview
    - background: `#f8d1e4ff`
    - width: `920`
    - height: `800`
+   - resolution: `window.devicePixelRatio || 1`
+   - autoDensity: `true`
 2. Append `app.canvas` vào `document.body`.
 3. Đăng ký asset Spine bằng `Assets.add`:
    - `female_skeleton` / `female_atlas`
@@ -48,6 +50,7 @@ npm run preview
    - board hiển thị: `700x700`
    - vùng mask grid gốc: `x=205`, `y=210`, `width=1510`, `height=1190`
    - chiều cao track dùng để chia khoảng cách symbol: `1210`
+   - `FIRST_REEL_OVERLAP_ORIG` đang là `0`; tăng biến này nếu muốn reel đầu dịch và mở mask sang trái.
 6. Tạo reel và symbol:
    - `symbolTypes` gồm `Maracas`, `Wild`, `female`, `male`, `sombrero`.
    - Symbol PNG dùng `Sprite`.
@@ -104,6 +107,7 @@ Nếu thay Spine asset, cần kiểm tra tên animation trong file Spine mới c
 
 - Tween tự viết đủ cho prototype, nhưng nếu game phức tạp hơn nên cân nhắc dùng tween library để dễ easing, cancel, sequence.
 - App đang có kích thước canvas cố định `920x800`; nếu cần responsive/mobile cần viết thêm logic resize và scale stage.
+- Canvas đang dùng `resolution` theo `devicePixelRatio` để asset Spine male/female sắc hơn trên màn hình high-DPI. Nếu thấy mờ lại, kiểm tra trước phần init Pixi này.
 
 ## Quy ước chỉnh sửa nên giữ
 
@@ -112,3 +116,4 @@ Nếu thay Spine asset, cần kiểm tra tên animation trong file Spine mới c
 - Khi thêm symbol PNG mới, chỉ cần load texture nếu muốn preload, rồi thêm `Texture.from("/path.png")` vào `symbolTypes`.
 - Sau khi sửa logic vị trí board/grid, cần kiểm tra trực quan vì các tọa độ hiện được căn theo kích thước ảnh gốc `1908x1566` của `/AA/Atest.png`.
 - `GRID_ORIG_HEIGHT` dùng cho mask hiển thị trong khung; `SYMBOL_TRACK_ORIG_HEIGHT` dùng để tính khoảng cách dọc giữa các symbol. Không nên gộp hai giá trị này nếu chỉ muốn chỉnh độ cân hàng.
+- `FIRST_REEL_OVERLAP_ORIG` vừa dịch reel đầu sang trái, vừa mở mask sang trái. Dùng thông số này khi muốn reel đầu đè lên board rõ hơn hoặc ít hơn.
