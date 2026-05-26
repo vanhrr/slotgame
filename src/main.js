@@ -155,8 +155,9 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       skeleton: "sombrero_skeleton",
       atlas: "sombrero_atlas",
       idle: "default",
+      cellOffsetY: 6,
     },
-  ];
+  ]
 
   function setupSymbolLayout(symbolConfig, displayObject) {
     const isSpine = symbolConfig.kind === "spine";
@@ -189,8 +190,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       ) * FIT_SCALE;
 
       displayObject.scale.set(scale);
-      displayObject.x = REEL_WIDTH / 2 + SYMBOL_OFFSET;
-      displayObject.y = SYMBOL_SIZE / 2 + SYMBOL_OFFSET;
+      displayObject.x = REEL_WIDTH / 2 + SYMBOL_OFFSET + (symbolConfig.cellOffsetX ?? DEFAULT_CELL_OFFSET_X);
+      displayObject.y = SYMBOL_SIZE / 2 + SYMBOL_OFFSET + (symbolConfig.cellOffsetY ?? DEFAULT_CELL_OFFSET_Y);
     } else {
       const scale = Math.min(
         REEL_WIDTH / origWidth,
