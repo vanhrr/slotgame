@@ -107,6 +107,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const MEXICAN_CHAR_BOARD_OVERLAP = 78;
   const MEXICAN_CHAR_BOTTOM_OFFSET = -18;
   const BLUR_SPEED = 8;
+  const LANDING_MIX_DURATION = 0.2;
+  const IDLE_RETURN_MIX_DURATION = 0.2;
   const DEFAULT_CELL_SCALE = 1;
   const DEFAULT_CELL_OFFSET_X = 0;
   const DEFAULT_CELL_OFFSET_Y = 0;
@@ -443,10 +445,10 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     const extraSpinStepsPerReel = 4;
     const windUpDistance = 0.22;
     const windUpTime = 120;
-    const stopOvershoot = 0.045;
+    const stopOvershoot = 0.02;
     const settleTime = 140;
     const reelStartDelay = 90;
-    const landingLeadRatio = 0.075;
+    const landingLeadTime = 240;
     const spinEase = createSpinEase(0.18, 0.34);
 
     for (let i = 0; i < reels.length; i++) {
@@ -475,9 +477,9 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
               overshootPosition,
               spinTime,
               (tween) => {
-                const phase = Math.min(1, (performance.now() - tween.start) / tween.time);
+                const elapsed = performance.now() - tween.start;
 
-                if (!landingStarted && phase >= 1 - landingLeadRatio) {
+                if (!landingStarted && elapsed >= tween.time - landingLeadTime) {
                   landingStarted = true;
                   playLandingForReel(r);
                 }
@@ -521,8 +523,11 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
         const landingAnim = "landing";
         const idleAnim = s.symbolConfig.idle;
 
-        spineObj.state.setAnimation(0, landingAnim, false);
-        spineObj.state.addAnimation(0, idleAnim, true, 0);
+        const landingEntry = spineObj.state.setAnimation(0, landingAnim, false);
+        landingEntry.mixDuration = LANDING_MIX_DURATION;
+
+        const idleEntry = spineObj.state.addAnimation(0, idleAnim, true, 0);
+        idleEntry.mixDuration = IDLE_RETURN_MIX_DURATION;
       }
     }
   }

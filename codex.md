@@ -81,7 +81,8 @@ npm run preview
 - Blur khi quay dựa trên tốc độ thay đổi `position`: `r.blur.blurY = (r.position - r.previousPosition) * 8`.
 - Các reel dừng lần lượt từ trái sang phải nhờ `stopDelayPerReel` và `extraSpinStepsPerReel` trong `startPlay()`.
 - Khi bắt đầu quay, mỗi reel nhích lên một đoạn ngắn bằng `windUpDistance` trong `windUpTime`, rồi mới chạy tween quay chính.
-- Landing animation được chạy theo từng reel ngay khi reel đó hoàn thành tween, không chờ tất cả reel dừng.
+- Landing animation được chạy theo từng reel với `landingLeadTime = 240ms`, tức là reel nào cũng bắt đầu landing trước khi spin tween kết thúc cùng một khoảng thời gian cố định.
+- Spine landing dùng `LANDING_MIX_DURATION = 0.2` để blend từ idle/static sang `landing`, và `IDLE_RETURN_MIX_DURATION = 0.12` để blend từ landing về idle.
 - Tween hiện tại là utility tự viết, dùng `Date.now()` và interpolation. Spin chính dùng `easeOutCubic` để reel quay nhanh lúc đầu rồi chậm dần trước khi dừng.
 
 ## Asset đang được dùng
