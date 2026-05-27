@@ -95,7 +95,6 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const REEL_GAP = 0;
   const FIT_SCALE = 0.85;
   const PNG_SCALE = 0.7;
-  const SYMBOL_OFFSET = -6;
   const BOARD_Y_OFFSET = -50;
   const PLAY_BUTTON_Y_OFFSET = -50;
   const PLAY_BUTTON_WIDTH = 90;
@@ -344,7 +343,6 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     };
     reel.blur.blurX = 0;
     reel.blur.blurY = 0;
-    rc.filters = [reel.blur];
 
     // Build symbols for 4 visible rows plus 1 hidden symbol at the top.
     for (let j = 0; j < SYMBOLS_PER_REEL; j++) {
@@ -439,41 +437,79 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     playButton.scale.set(baseScale);
     playButton.cursor = "default";
 
-    const baseSpinDistance = 20;
-    const baseSpinTime = 1500;
+    const baseSpinDistance = 24;
+    const baseSpinTime = 2050;
     const stopDelayPerReel = 200;
     const extraSpinStepsPerReel = 4;
-    const windUpDistance = 0.25;
-    const windUpTime = 200;
+    const windUpDistance = 0.22;
+    const windUpTime = 120;
+    const stopOvershoot = 0.045;
+    const settleTime = 140;
+    const reelStartDelay = 90;
+    const landingLeadRatio = 0.075;
+    const spinEase = createSpinEase(0.18, 0.34);
 
     for (let i = 0; i < reels.length; i++) {
       const r = reels[i];
       const startPosition = r.position;
       const spinDistance = baseSpinDistance + i * extraSpinStepsPerReel;
       const spinTime = baseSpinTime + i * stopDelayPerReel;
+      const targetPosition = startPosition + spinDistance;
+      const overshootPosition = targetPosition + stopOvershoot + i * 0.005;
+      let landingStarted = false;
       const isLastReel = i === reels.length - 1;
 
-      tweenTo(
-        r,
-        "position",
-        startPosition - windUpDistance,
-        windUpTime,
-        null,
-        () => {
-          tweenTo(
-            r,
-            "position",
-            startPosition + spinDistance,
-            spinTime,
-            null,
-            () => {
-              updateReelSymbols(r);
-              playLandingForReel(r);
-              if (isLastReel) reelsComplete();
-            },
-          );
-        },
-      );
+      delayCall(i * reelStartDelay, () => {
+        r.container.filters = [r.blur];
+
+        tweenTo(
+          r,
+          "position",
+          startPosition - windUpDistance,
+          windUpTime,
+          null,
+          () => {
+            tweenTo(
+              r,
+              "position",
+              overshootPosition,
+              spinTime,
+              (tween) => {
+                const phase = Math.min(1, (performance.now() - tween.start) / tween.time);
+
+                if (!landingStarted && phase >= 1 - landingLeadRatio) {
+                  landingStarted = true;
+                  playLandingForReel(r);
+                }
+              },
+              () => {
+                if (!landingStarted) {
+                  landingStarted = true;
+                  playLandingForReel(r);
+                }
+                tweenTo(
+                  r,
+                  "position",
+                  targetPosition,
+                  settleTime,
+                  null,
+                  () => {
+                    r.position = targetPosition;
+                    r.previousPosition = targetPosition;
+                    r.blur.blurY = 0;
+                    r.container.filters = null;
+                    updateReelSymbols(r);
+                    if (isLastReel) reelsComplete();
+                  },
+                  easeInOutSine,
+                );
+              },
+              spinEase,
+            );
+          },
+          easeOutSine,
+        );
+      });
     }
   }
 
@@ -496,6 +532,12 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     running = false;
     playButton.alpha = 1.0;
     playButton.cursor = "pointer";
+
+    for (let i = 0; i < reels.length; i++) {
+      const reel = reels[i];
+      reel.blur.blurY = 0;
+      reel.container.filters = null;
+    }
   }
 
   function layoutScene() {
@@ -600,7 +642,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   function updateReels() {
     for (let i = 0; i < reels.length; i++) {
       const r = reels[i];
-      r.blur.blurY = (r.position - r.previousPosition) * BLUR_SPEED;
+      const reelSpeed = r.position - r.previousPosition;
+      r.blur.blurY = Math.min(Math.abs(reelSpeed) * BLUR_SPEED, 18);
       r.previousPosition = r.position;
       updateReelSymbols(r);
     }
@@ -609,6 +652,15 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   // Very simple tweening utility function. This should be replaced with a proper tweening library in a real product.
   const tweening = [];
 
+  function delayCall(time, callback) {
+    if (time <= 0) {
+      callback();
+      return null;
+    }
+
+    return tweenTo({ progress: 0 }, "progress", 1, time, null, callback);
+  }
+
   function tweenTo(
     object,
     property,
@@ -616,6 +668,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     time,
     onchange,
     oncomplete,
+    easing = easeLinear,
   ) {
     const tween = {
       object,
@@ -625,7 +678,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       time,
       change: onchange,
       complete: oncomplete,
-      start: Date.now(),
+      easing,
+      start: performance.now(),
     };
 
     tweening.push(tween);
@@ -633,33 +687,43 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     return tween;
   }
   function updateTweens() {
-    const now = Date.now();
-    const remove = [];
+    const now = performance.now();
+    const completed = [];
 
     for (let i = 0; i < tweening.length; i++) {
       const t = tweening[i];
       const phase = Math.min(1, (now - t.start) / t.time);
+      const easedPhase = t.easing(phase);
 
       t.object[t.property] = lerp(
         t.propertyBeginValue,
         t.target,
-        phase,
+        easedPhase,
       );
       if (t.change) t.change(t);
       if (phase === 1) {
         t.object[t.property] = t.target;
-        if (t.complete) t.complete(t);
-        remove.push(t);
+        completed.push(t);
       }
     }
-    for (let i = 0; i < remove.length; i++) {
-      tweening.splice(tweening.indexOf(remove[i]), 1);
+
+    for (let i = tweening.length - 1; i >= 0; i--) {
+      if (completed.includes(tweening[i])) {
+        tweening.splice(i, 1);
+      }
+    }
+
+    for (let i = 0; i < completed.length; i++) {
+      const t = completed[i];
+      if (t.complete) t.complete(t);
     }
   }
 
   app.ticker.add(() => {
-    updateReels();
     updateTweens();
+    if (running || tweening.length > 0) {
+      updateReels();
+    }
   });
 
   // Basic lerp funtion.
@@ -667,4 +731,48 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     return a1 * (1 - t) + a2 * t;
   }
 
+  function easeLinear(t) {
+    return t;
+  }
+
+  function easeOutSine(t) {
+    return Math.sin((t * Math.PI) / 2);
+  }
+
+  function easeInOutSine(t) {
+    return -(Math.cos(Math.PI * t) - 1) / 2;
+  }
+
+  function createSpinEase(accelerationRatio, decelerationRatio) {
+    const acceleration = Math.max(0.01, Math.min(0.8, accelerationRatio));
+    const deceleration = Math.max(0.01, Math.min(0.8, decelerationRatio));
+    const cruise = Math.max(0, 1 - acceleration - deceleration);
+    const totalArea = cruise + acceleration / 2 + deceleration / 2;
+
+    return (t) => {
+      if (t <= acceleration) {
+        const u = t / acceleration;
+        return acceleration * integratedSmoothstep(u) / totalArea;
+      }
+
+      const accelerationArea = acceleration / 2;
+
+      if (t <= acceleration + cruise) {
+        return (accelerationArea + (t - acceleration)) / totalArea;
+      }
+
+      const u = (t - acceleration - cruise) / deceleration;
+      const decelerationArea = deceleration * integratedSmoothstepOut(u);
+
+      return (accelerationArea + cruise + decelerationArea) / totalArea;
+    };
+  }
+
+  function integratedSmoothstep(t) {
+    return t * t * t - 0.5 * t * t * t * t;
+  }
+
+  function integratedSmoothstepOut(t) {
+    return t - t * t * t + 0.5 * t * t * t * t;
+  }
 })();
