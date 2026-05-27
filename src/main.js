@@ -445,11 +445,11 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
     const extraSpinStepsPerReel = 4;
     const windUpDistance = 0.22;
     const windUpTime = 120;
-    const stopOvershoot = 0.02;
+    const stopOvershoot = 0.12;
     const settleTime = 140;
     const reelStartDelay = 90;
     const landingLeadTime = 240;
-    const spinEase = createSpinEase(0.18, 0.34);
+    const spinEase = createSpinEase(0.14, 0.16);
 
     for (let i = 0; i < reels.length; i++) {
       const r = reels[i];
@@ -457,7 +457,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       const spinDistance = baseSpinDistance + i * extraSpinStepsPerReel;
       const spinTime = baseSpinTime + i * stopDelayPerReel;
       const targetPosition = startPosition + spinDistance;
-      const overshootPosition = targetPosition + stopOvershoot + i * 0.005;
+      const overshootPosition = targetPosition + stopOvershoot + i * 0.01;
       let landingStarted = false;
       const isLastReel = i === reels.length - 1;
 
@@ -503,7 +503,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
                     updateReelSymbols(r);
                     if (isLastReel) reelsComplete();
                   },
-                  easeInOutSine,
+                  easeOutBack,
                 );
               },
               spinEase,
@@ -746,6 +746,13 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
   function easeInOutSine(t) {
     return -(Math.cos(Math.PI * t) - 1) / 2;
+  }
+
+  function easeOutBack(t) {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
   }
 
   function createSpinEase(accelerationRatio, decelerationRatio) {
