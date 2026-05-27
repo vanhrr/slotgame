@@ -74,9 +74,9 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
 
   // Grid coordinates relative to original Atest.png (1908x1566).
   // Keep the reel mask inside the gold frame so symbols do not overlap the board.
-  const GRID_ORIG_X = 205;
+  const GRID_ORIG_X = 185;
   const GRID_ORIG_Y = 202;
-  const GRID_ORIG_WIDTH = 1510;
+  const GRID_ORIG_WIDTH = 1520;
   const GRID_ORIG_HEIGHT = 1201;
   const SYMBOL_TRACK_ORIG_HEIGHT = 1210;
   const FIRST_REEL_OVERLAP_ORIG = 0;
@@ -92,7 +92,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
   const REEL_COUNT = 5;
   const ROW_COUNT = 4;
   const SYMBOLS_PER_REEL = ROW_COUNT + 1;
-  const REEL_GAP = 6;
+  const REEL_GAP = 0;
   const FIT_SCALE = 0.85;
   const PNG_SCALE = 0.7;
   const SYMBOL_OFFSET = -6;
@@ -129,8 +129,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       skeleton: "female_skeleton",
       atlas: "female_atlas",
       idle: "idle",
-      cellScale: 1.1,
-      cellOffsetX: -5,
+      cellScale: 1.08,
+      cellOffsetX: 0,
       cellOffsetY: -3,
       cellOverflowX: 18,
       cellOverflowY: 18,
@@ -142,8 +142,8 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       skeleton: "male_skeleton",
       atlas: "male_atlas",
       idle: "idle",
-      cellScale: 1.1,
-      cellOffsetX: -5,
+      cellScale: 1.08,
+      cellOffsetX: 0,
       cellOffsetY: -3,
       cellOverflowX: 18,
       cellOverflowY: 18,
@@ -155,7 +155,7 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       skeleton: "sombrero_skeleton",
       atlas: "sombrero_atlas",
       idle: "default",
-      cellOffsetY: 6,
+      cellOffsetY: 0,
     },
   ]
 
@@ -190,8 +190,10 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       ) * FIT_SCALE;
 
       displayObject.scale.set(scale);
-      displayObject.x = REEL_WIDTH / 2 + SYMBOL_OFFSET + (symbolConfig.cellOffsetX ?? DEFAULT_CELL_OFFSET_X);
-      displayObject.y = SYMBOL_SIZE / 2 + SYMBOL_OFFSET + (symbolConfig.cellOffsetY ?? DEFAULT_CELL_OFFSET_Y);
+      displayObject.x = (REEL_WIDTH - origWidth * scale) / 2 - boundsX * scale
+        + (symbolConfig.cellOffsetX ?? DEFAULT_CELL_OFFSET_X);
+      displayObject.y = (SYMBOL_SIZE - origHeight * scale) / 2 - boundsY * scale
+        + (symbolConfig.cellOffsetY ?? DEFAULT_CELL_OFFSET_Y);
     } else {
       const scale = Math.min(
         REEL_WIDTH / origWidth,
@@ -199,8 +201,10 @@ import { Spine } from "@esotericsoftware/spine-pixi-v8";
       ) * PNG_SCALE;
 
       displayObject.scale.set(scale);
-      displayObject.x = Math.round((REEL_WIDTH - displayObject.width) / 2) + SYMBOL_OFFSET;
-      displayObject.y = Math.round((SYMBOL_SIZE - displayObject.height) / 2) + SYMBOL_OFFSET + 5;
+      displayObject.x = Math.round((REEL_WIDTH - displayObject.width) / 2)
+        + (symbolConfig.cellOffsetX ?? DEFAULT_CELL_OFFSET_X);
+      displayObject.y = Math.round((SYMBOL_SIZE - displayObject.height) / 2)
+        + (symbolConfig.cellOffsetY ?? DEFAULT_CELL_OFFSET_Y);
     }
   }
 
